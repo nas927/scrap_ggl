@@ -134,7 +134,10 @@ function lireTousLesUtilisateurs(db) {
 // copie colle dans la console js
 // copie colle le tableau qu'il va t'envoyer donne à un llm pour le formatter en csv ou quoi
 lireTousLesUtilisateurs().then(data => {
-    console.log(data);
+    const obj = Object.fromEntries(data.map(item => [item.id, item]));
+    console.log(obj);
+    const json = JSON.stringify(obj);
+    console.log(json);
 });
 // Si tu souhaite supprimer la bdd existante décommente et prend juste ça 
 //indexedDB.deleteDatabase("Scraping");
