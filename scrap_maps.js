@@ -16,14 +16,16 @@ function selectCard() {
     for (let i = 0; i < cards_length; i++)
     {
         setTimeout(() => {
+            if (i % 6 == 0)
+            {
+                parentCard.scrollTo(0, parentCard.scrollHeight);
+                cards = document.querySelectorAll("a.hfpxzc");
+                console.log(cards);
+            }
+            console.log("click sur la carte n°" + i);
             cards[i].click();
             saveData(cards[i]);
         }, i * 5000);
-        if (i % 7 == 0)
-        {
-            parentCard.scrollTo(0, parentCard.scrollHeight);
-            cards = document.querySelectorAll("a.hfpxzc");
-        }
     }
 }
 
@@ -43,8 +45,7 @@ function saveData(nom) {
     datas["nom"] = nom.ariaLabel;
     datas["map"] = map;
     datas["numero"] = phone;
-    datas["nom_site_web"] = site
-    console.log(datas);
+    datas["nom_site_web"] = site;
 
     initDB().then((db) =>{
         addData(db, datas);
