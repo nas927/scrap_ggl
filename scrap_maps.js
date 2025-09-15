@@ -29,23 +29,61 @@ function selectCard() {
     }
 }
 
-function saveData(nom) {
+async function tryEmailScraping(name) 
+{
+    return new Promise((resolve, reject) => {
+        let page;
+        let email;
+        const regex_email = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+        const newWindow = window.open("https://www.google.com/search?q=restaurant+" + name.replace(" ", "+") + "+email", "_blank");
+        const interval = setInterval(() => {
+        try {
+            if (newWindow && newWindow.document && newWindow.document.readyState === 'complete') {
+                clearInterval(interval);
+                console.log('Chargement terminé (polling)');
+                console.log(newWindow);
+                email = newWindow.document.querySelector("div[data-sncf]");
+
+                if (email)
+                {
+                    email = email.textContent;
+                    email = email.match(regex_email);
+                    console.log(email);
+                    if (email)
+                        email = email[0];
+                }
+                else
+                    email = "";
+                resolve(email);
+                newWindow.close();
+                resolve(email.match(regex_email)[0]);
+            }
+        } catch (err) {
+            clearInterval(interval);
+            reject(new Error("Impossible d'accéder au document (cross-origin?)"));
+        }
+        }, 150);
+    });
+}
+
+async function saveData(nom) {
     let phone = document.querySelector("button[data-item-id^=phone]");
     let site = document.querySelector("a[data-item-id=authority]");
     let map = document.querySelector("button[data-item-id=address]");
     let datas = {};
 
     if (phone)
-        phone = phone.dataset["itemId"].match(/[^:]+$/)[0];
+        phone = "0" + phone.dataset["itemId"].match(/[^:]+$/)[0];
     if (site)
         site = site.href;
     if (map)
         map = map.textContent;
 
-    datas["nom"] = nom.ariaLabel;
-    datas["map"] = map;
+    datas["nom"] = nom.ariaLabel.replace("Lien consulté", "").trim();
+    datas["map"] = map.replace(/^./, "");
     datas["numero"] = phone;
     datas["nom_site_web"] = site;
+    datas["email"] = await tryEmailScraping(datas["nom"]);
 
     initDB().then((db) =>{
         addData(db, datas);
@@ -54,7 +92,7 @@ function saveData(nom) {
 
 function initDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open("Scraping", 2);
+        const request = indexedDB.open("scrap", 1);
         
         request.onupgradeneeded = function(event) {
             const db = event.target.result;
@@ -67,6 +105,7 @@ function initDB() {
             store.createIndex("site", "site", { unique: false });
             store.createIndex("numero", "numero", { unique: false });
             store.createIndex("map", "map", { unique: false });
+            store.createIndex("email", "email", { unique: false });
         };
         
         request.onerror = function(event) {
@@ -123,5 +162,69 @@ lireTousLesUtilisateurs().then(data => {
 });
 // Si tu souhaite supprimer la bdd existante décommente et prend juste ça 
 //indexedDB.deleteDatabase("Scraping");
+
+function exportIndexedDBToCSV(dbName) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName);
+
+    request.onerror = (event) => reject(event.target.error);
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+
+      const tx = db.transaction(db.objectStoreNames, "readonly");
+      let pending = db.objectStoreNames.length;
+
+      for (const storeName of db.objectStoreNames) {
+        const store = tx.objectStore(storeName);
+        const getAllReq = store.getAll();
+
+        getAllReq.onsuccess = (e) => {
+          const data = e.target.result;
+          if (data.length === 0) {
+            pending--;
+            if (pending === 0) resolve();
+            return;
+          }
+
+          // extraire les colonnes dynamiquement
+          const headers = Object.keys(data[0]);
+          const csvRows = [headers.join(",")];
+
+          for (const row of data) {
+            const values = headers.map(h => {
+              let val = row[h] ?? "";
+              val = val.toString().replace(/"/g, '""'); // échapper les guillemets
+              if (val.includes(",") || val.includes("\n") || val.includes('"')) {
+                val = `"${val}"`;
+              }
+              return val;
+            });
+            csvRows.push(values.join(","));
+          }
+
+          // créer et télécharger le CSV
+          const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${storeName}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          pending--;
+          if (pending === 0) resolve();
+        };
+
+        getAllReq.onerror = (err) => reject(err);
+      }
+    };
+  });
+}
+
+// Décommenter pour exporter la base de donnée en CSV:
+// exportIndexedDBToCSV("scrap")
+//   .then(() => console.log("Export CSV terminé ✅"))
+//   .catch(err => console.error("Erreur export CSV :", err));
+
 
 selectCard();
