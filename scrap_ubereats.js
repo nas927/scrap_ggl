@@ -18,11 +18,11 @@ function parcoursCard(cards, begin)
     {
         setTimeout(() => {
             GoToCard(cards[i]);
-        }, i * 13000);
+        }, i * 17000);
     }
     setTimeout(() => {
         getNext(cards.length);
-    }, cards.length * 13000);
+    }, cards.length * 18000);
 }
 
 function GoToCard(card) {
@@ -44,6 +44,8 @@ function inCard(windowRef) {
     let info = windowRef.document.querySelector("div[data-testid=store-desktop-loaded-coi] a");
     if (info)
     {
+        document.addEventListener("load", e => e.preventDefault(), true);
+        document.addEventListener("DOMContentLoaded", e => e.preventDefault(), true);
         console.log(info);
         info.click();
         setTimeout(() => {
@@ -53,7 +55,7 @@ function inCard(windowRef) {
     else
     {
         inCard(windowRef);
-        console.log("Attente du chargement de la page");
+        console.log("Attente du chargement du composant info");
         return;
     }
 }
