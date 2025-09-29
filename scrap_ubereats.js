@@ -73,6 +73,12 @@ function getNext(begin) {
 function saveData(windowRef) {
     console.log("page : ", windowRef);
     let dialog = windowRef.document.querySelector("div[role=dialog]");
+    if (!dialog)
+    {
+        console.log("info indisponible sur cette page");
+        windowRef.close();
+        return;
+    }
     let info = dialog.querySelector("div[data-testid]");
     let content = info.innerText;
     console.log(content);
